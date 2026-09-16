@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Memuat Artikel... - Belanja Online</title>
+    
+    <!-- FAVICON DEFAULT -->
+    <link id="dynamicFavicon" rel="icon" type="image/png" href="https://placehold.co/32x32/10b981/ffffff?text=S">
+    
+    <!-- TAILWIND DENGAN PLUGIN TYPOGRAPHY (PENTING BUAT BACA BLOG) -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+        }
+        
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Animasi Skeleton Loading */
+        .skeleton { 
+            background: #e2e8f0; 
+            animation: pulse 1.5s infinite ease-in-out; 
+        }
+        @keyframes pulse { 
+            0% { opacity: 1; } 
+            50% { opacity: 0.5; } 
+            100% { opacity: 1; } 
+        }
+
+        /* Styling Custom untuk Teks Link di Artikel */
+        .prose a {
+            color: #10b981;
+            text-decoration: none;
+            font-weight: 600;
+            border-bottom: 1px dashed #10b981;
+            transition: all 0.3s ease;
+        }
+        .prose a:hover {
+            color: #059669;
+            border-bottom: 1px solid #059669;
+        }
+        .prose img {
+            border-radius: 1rem;
+            margin-left: auto;
+            margin-right: auto;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased pb-24">
+
+    <!-- Screen Loading / Error -->
+    <div id="loaderScreen" class="fixed inset-0 bg-white z-[200] flex flex-col items-center justify-center">
+        <i data-lucide="loader-2" class="w-10 h-10 text-indigo-500 animate-spin mb-4"></i>
+        <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest" id="loaderText">Membuka Artikel...</h2>
+    </div>
+
+    <!-- Header Navigasi -->
+    <header class="bg-white/90 backdrop-blur-md border-b border-slate-100 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <!-- Tombol Kembali ke Toko -->
+                <a href="index.html" class="p-2 -ml-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-colors flex items-center justify-center">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                </a>
+                
+                <div class="h-6 w-px bg-slate-200 mx-1"></div>
+
+                <div id="storeLogo" class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center overflow-hidden border border-slate-100 shrink-0">
+                    <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-slate-900 leading-tight truncate max-w-[150px] sm:max-w-[200px] text-sm" id="storeName">Nama Toko</h1>
+                    <div class="text-[9px] font-medium text-slate-400">Official Blog</div>
+                </div>
+            </div>
+            
+            <button onclick="shareArticle()" class="relative p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors flex items-center gap-2">
+                <i data-lucide="share-2" class="w-5 h-5"></i>
+                <span class="text-xs font-bold hidden sm:inline-block pr-1">Bagikan</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-3xl mx-auto px-4 py-8 relative">
+
+        <div id="articleContainer" class="hidden">
+            <!-- Breadcrumb / Kategori Cepat -->
+            <div class="flex items-center gap-2 text-[10px] sm:text-xs font-bold text-indigo-500 uppercase tracking-wider mb-5">
+                <i data-lucide="book-open" class="w-4 h-4"></i> Info & Edukasi
+            </div>
+
+            <!-- Judul Artikel -->
+            <h1 id="artTitle" class="text-2xl sm:text-4xl font-black text-slate-900 leading-tight mb-4 tracking-tight">
+                Judul Artikel
+            </h1>
+
+            <!-- Meta Info (Tanggal & Author) -->
+            <div class="flex items-center gap-3 text-xs text-slate-500 font-medium mb-8 pb-6 border-b border-slate-200">
+                <div class="flex items-center gap-1.5">
+                    <i data-lucide="calendar" class="w-4 h-4"></i>
+                    <span id="artDate">01 Januari 2026</span>
+                </div>
+                <div class="w-1 h-1 bg-slate-300 rounded-full"></div>
+                <div class="flex items-center gap-1.5">
+                    <i data-lucide="user" class="w-4 h-4"></i>
+                    <span id="artAuthor">Admin Toko</span>
+                </div>
+            </div>
+
+            <!-- Gambar Cover Artikel -->
+            <div id="artCoverContainer" class="mb-10 rounded-2xl sm:rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-slate-100 aspect-video relative">
+                <img id="artCover" src="" alt="Cover Artikel" class="w-full h-full object-cover">
+            </div>
+
+            <!-- Isi Artikel (MENGGUNAKAN TAILWIND TYPOGRAPHY) -->
+            <article id="artContent" class="prose prose-slate prose-img:rounded-xl prose-a:text-emerald-600 max-w-none text-slate-700 leading-loose sm:text-lg">
+                <!-- Teks Artikel di-inject via JS -->
+            </article>
+
+            <!-- Bagian Bawah Artikel (Call to Action) -->
+            <div class="mt-16 pt-8 border-t border-slate-200 text-center">
+                <h3 class="font-bold text-slate-800 mb-4">Suka dengan artikel ini? Yuk belanja produk kami!</h3>
+                <a href="index.html" class="inline-flex items-center justify-center gap-2 px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-lg transition-transform active:scale-95">
+                    <i data-lucide="shopping-bag" class="w-5 h-5"></i> Lihat Katalog Produk
+                </a>
+            </div>
+        </div>
+        
+    </main>
+
+    <!-- Footer Super Simple -->
+    <footer class="max-w-3xl mx-auto px-4 py-8 text-center mt-8">
+        <p class="text-[10px] text-slate-400">Powered by <b>iMersWAstore</b></p>
+    </footer>
+
+    <!-- Notifikasi Toast Berhasil Copy Link -->
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full text-xs font-bold shadow-2xl transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center gap-2">
+        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i> <span id="toastMsg">Link berhasil disalin!</span>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- JAVASCRIPT LOGIC -->
+    <!-- ========================================== -->
+    <script>
+        // SCRIPT URL (Sama persis dengan yang ada di index.html)
+        var SCRIPT_URL = 'GANTI DENGAN WEB URL HASIL DEPLOY';
+
+        let storeData = {};
+        let currentArticle = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            
+            // Ambil Slug dari URL (misal: ?slug=cara-merawat-sepatu)
+            const urlParams = new URLSearchParams(window.location.search);
+            const slug = urlParams.get('slug');
+
+            if (!slug) {
+                // Kalau gak ada slug, langsung kembalikan ke home
+                window.location.replace('index.html');
+                return;
+            }
+
+            fetchArticleData(slug);
+        });
+
+        async function fetchArticleData(slug) {
+            try {
+                let fd = new FormData();
+                // Kita manfaatkan endpoint yang sama dengan index.html biar praktis
+                fd.append('action', 'get_store_catalog');
+
+                const response = await fetch(SCRIPT_URL, { method: 'POST', body: fd });
+                const res = await response.json();
+
+                if (res.success) {
+                    storeData = res.store;
+                    const articles = res.articles || [];
+                    
+                    // Cari artikel yang slug-nya cocok
+                    currentArticle = articles.find(a => a.slug === slug);
+
+                    if (currentArticle) {
+                        buildArticleUI();
+                    } else {
+                        showLoaderError("Artikel tidak ditemukan atau sudah dihapus.");
+                    }
+                } else {
+                    showLoaderError(res.message || "Toko tidak ditemukan.");
+                }
+            } catch(e) {
+                showLoaderError("Gagal terhubung ke server database.");
+            }
+        }
+
+        function buildArticleUI() {
+            // Sembunyikan Loader
+            document.getElementById('loaderScreen').classList.add('hidden');
+
+            // 1. Setup Header & Meta Toko
+            document.title = `${currentArticle.title} - ${storeData.nama_toko}`;
+            document.getElementById('storeName').innerText = storeData.nama_toko;
+            document.getElementById('artAuthor').innerText = storeData.nama_toko; // Pura-puranya penulisnya nama toko
+            
+            if (storeData.logo) {
+                document.getElementById('storeLogo').innerHTML = `<img src="${storeData.logo}" class="w-full h-full object-cover">`;
+                const favicon = document.getElementById('dynamicFavicon');
+                if(favicon) favicon.href = storeData.logo;
+            } else {
+                document.getElementById('storeLogo').innerHTML = `<span class="font-bold text-[10px]">${storeData.nama_toko.charAt(0)}</span>`;
+            }
+
+            // 2. Tampilkan Data Artikel
+            document.getElementById('artTitle').innerText = currentArticle.title;
+            
+            // Format Tanggal ala Indonesia (ex: 26 Juni 2026)
+            const dateObj = new Date(currentArticle.date);
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('artDate').innerText = dateObj.toLocaleDateString('id-ID', options);
+
+            // Cover Gambar
+            const coverEl = document.getElementById('artCover');
+            const coverContainer = document.getElementById('artCoverContainer');
+            if (currentArticle.img && currentArticle.img.trim() !== '') {
+                coverEl.src = currentArticle.img;
+            } else {
+                // Sembunyikan div gambar kalau gak ada covernya
+                coverContainer.classList.add('hidden');
+            }
+
+            // Isi Konten HTML (Sudah dirapikan otomatis oleh Tailwind Typography)
+            document.getElementById('artContent').innerHTML = currentArticle.content;
+
+            // Tampilkan container utama
+            document.getElementById('articleContainer').classList.remove('hidden');
+            
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        // Fitur Share Pintar (Native Web Share API / Copy Link)
+        function shareArticle() {
+            const shareData = {
+                title: document.title,
+                text: `Baca artikel menarik ini dari ${storeData.nama_toko}: ${currentArticle ? currentArticle.title : ''}`,
+                url: window.location.href
+            };
+
+            // Cek apakah HP/Browser dukung Native Share (muncul pop-up WA/IG bawaan HP)
+            if (navigator.share) {
+                navigator.share(shareData).catch(console.error);
+            } else {
+                // Fallback untuk Desktop: Copy link ke clipboard
+                copyToClipboard(window.location.href);
+            }
+        }
+
+        // Helper Copy Link
+        function copyToClipboard(text) {
+            const tempInput = document.createElement("input");
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            
+            try {
+                document.execCommand("copy");
+                showToast("Link artikel berhasil disalin!");
+            } catch (err) {
+                console.error('Gagal copy text: ', err);
+            }
+            
+            document.body.removeChild(tempInput);
+        }
+
+        // Tampilkan Notifikasi (Toast)
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            
+            // Animasi masuk
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+            
+            // Hilang otomatis setelah 3 detik
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        // Tampilkan Error jika Artikel tidak ada
+        function showLoaderError(msg) {
+            const loader = document.getElementById('loaderScreen');
+            loader.innerHTML = `
+                <i data-lucide="file-question" class="w-12 h-12 text-slate-300 mb-4"></i>
+                <h2 class="text-base font-bold text-slate-700 text-center px-6 mb-2">Oops! Ada yang salah</h2>
+                <p class="text-xs text-slate-500 mb-6 text-center">${msg}</p>
+                <a href="index.html" class="px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md transition-colors">
+                    Kembali ke Toko Utama
+                </a>
+            `;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+    </script>
+</body>
+</html>
