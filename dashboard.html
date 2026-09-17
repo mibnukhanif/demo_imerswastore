@@ -174,7 +174,7 @@
                         <i data-lucide="trending-up" class="w-48 h-48 -mr-10 -mt-10"></i>
                     </div>
                     <div class="relative z-10">
-                        <h2 class="text-xl sm:text-2xl font-bold mb-1">Selamat datang kembali, <span id="welcomeName">User</span>!</h2>
+                        <h2 class="text-xl sm:text-2xl font-bold mb-1">Selamat datang kembali, <span id="welcomeName">User</span>! 👋</h2>
                         <p class="text-emerald-50 text-xs sm:text-sm">Berikut adalah ringkasan aktivitas toko Anda hari ini.</p>
                     </div>
                 </div>
@@ -873,12 +873,26 @@
                             </div>
                         </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-700 mb-1">URL Gambar (Opsional)</label>
-                        <input type="url" id="prodImg" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        <label class="block text-xs font-medium text-slate-700 mb-1">URL Gambar Utama (Opsional)</label>
+                        <input type="url" id="prodImg" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="https://...">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">URL Gambar Tambahan (Opsional)</label>
+                        <textarea id="prodGalleryImages" rows="3" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="1 URL gambar per baris, maksimal 10"></textarea>
+                        <p class="text-[10px] text-slate-400 mt-1">Gambar utama tetap dipakai sebagai cover. URL tambahan akan tampil sebagai galeri pada detail produk.</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">URL Video Produk (Opsional)</label>
+                        <textarea id="prodVideoUrls" rows="3" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="YouTube / Shorts / Vimeo / Google Drive / MP4, 1 URL per baris, maksimal 10"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">URL Detail / Preview Produk (Opsional)</label>
+                        <input type="url" id="prodDetailUrl" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="https://halaman-detail-produk.com">
+                        <p class="text-[10px] text-slate-400 mt-1">Kalau diisi, tombol Preview / Detail Produk otomatis muncul di etalase.</p>
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-700 mb-1">Deskripsi</label>
-                        <textarea id="prodDesc" rows="2" class="w-full px-3 py-2 border rounded-lg text-sm"></textarea>
+                        <textarea id="prodDesc" rows="3" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="URL https://... di deskripsi otomatis menjadi hyperlink di etalase."></textarea>
                     </div>
                     <div class="mt-4 border-t border-slate-100 pt-4">
                         <div class="flex justify-between items-center mb-2">
@@ -1805,7 +1819,7 @@
                 let parentName = '';
                 if (c.parent_id) {
                     const parentCat = globalCategories.find(p => p.id === c.parent_id);
-                    if (parentCat) parentName = `<br><span class="text-[10px] text-emerald-500 font-medium">â†³ Sub dari: ${parentCat.name}</span>`;
+                    if (parentCat) parentName = `<br><span class="text-[10px] text-emerald-500 font-medium">↳ Sub dari: ${parentCat.name}</span>`;
                 }
                 return `
                 <tr class="border-b hover:bg-slate-50">
@@ -1901,6 +1915,27 @@
             }).join('');
         }
 
+        function productUrlListToTextarea(value) {
+            if (!value) return '';
+            if (Array.isArray(value)) return value.join('\n');
+            try {
+                const arr = JSON.parse(value);
+                if (Array.isArray(arr)) return arr.join('\n');
+            } catch(e) {}
+            return String(value).split(/\r?\n|,/).map(v => v.trim()).filter(Boolean).join('\n');
+        }
+
+        function productTextareaToJson(id, maxItems = 10) {
+            const el = document.getElementById(id);
+            if (!el) return '[]';
+            const unique = [];
+            String(el.value || '').split(/\r?\n/).forEach(raw => {
+                const url = raw.trim();
+                if (/^https?:\/\//i.test(url) && !unique.includes(url) && unique.length < maxItems) unique.push(url);
+            });
+            return JSON.stringify(unique);
+        }
+
         function openProductModal(id = null) {
             document.getElementById('productForm').reset();
             document.getElementById('prodId').value = '';
@@ -1918,6 +1953,9 @@
                     if (document.getElementById('prodUnit')) document.getElementById('prodUnit').value = p.unit || 'pcs';
                     if (document.getElementById('prodBadge')) document.getElementById('prodBadge').value = p.badge || '';
                     if (document.getElementById('prodImg')) document.getElementById('prodImg').value = p.img || '';
+                    if (document.getElementById('prodGalleryImages')) document.getElementById('prodGalleryImages').value = productUrlListToTextarea(p.gallery_images);
+                    if (document.getElementById('prodVideoUrls')) document.getElementById('prodVideoUrls').value = productUrlListToTextarea(p.video_urls);
+                    if (document.getElementById('prodDetailUrl')) document.getElementById('prodDetailUrl').value = p.detail_url || '';
                     if (document.getElementById('prodDesc')) document.getElementById('prodDesc').value = p.desc || '';
                     if (document.getElementById('prodCategory')) document.getElementById('prodCategory').value = p.category_id || '';
                     let parsedVars = []; try { if (p.variants) parsedVars = JSON.parse(p.variants); } catch(e){}
@@ -1939,7 +1977,10 @@
                 stok: document.getElementById('prodStock').value,
                 satuan: document.getElementById('prodUnit') ? document.getElementById('prodUnit').value : 'pcs',
                 badge: document.getElementById('prodBadge') ? document.getElementById('prodBadge').value : '',
-                gambar: document.getElementById('prodImg') ? document.getElementById('prodImg').value : '',
+                gambar: document.getElementById('prodImg') ? document.getElementById('prodImg').value.trim() : '',
+                gallery_images: productTextareaToJson('prodGalleryImages', 10),
+                video_urls: productTextareaToJson('prodVideoUrls', 10),
+                detail_url: document.getElementById('prodDetailUrl') ? document.getElementById('prodDetailUrl').value.trim() : '',
                 deskripsi: document.getElementById('prodDesc') ? document.getElementById('prodDesc').value : '',
                 id_kategori: document.getElementById('prodCategory') ? document.getElementById('prodCategory').value : ''
             };
@@ -2406,7 +2447,7 @@
             try {
                 const res = await apiCall('add_order', payload);
                 if (res.success) {
-                    showGlobalAlert("âœ… Pesanan Kasir Berhasil Disimpan!", true);
+                    showGlobalAlert("✅ Pesanan Kasir Berhasil Disimpan!", true);
                     closeModal('checkoutModal'); clearCart();
                     await fetchDashboardData(); switchView('order');
                 } else {
