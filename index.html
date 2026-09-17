@@ -256,6 +256,7 @@
                     <div class="aspect-square bg-slate-100 relative shrink-0">
                         <img id="detailImg" src="" class="w-full h-full object-cover">
                     </div>
+                    <div id="detailMediaStrip" class="hidden px-4 pt-3 pb-1 flex gap-2 overflow-x-auto hide-scrollbar bg-white"></div>
                     
                     <div class="p-5">
                         <h3 id="detailName" class="text-xl font-bold text-slate-800 mb-1 leading-tight">Nama Produk</h3>
@@ -272,18 +273,36 @@
 
                         <div class="mb-5">
                             <p class="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-1 flex items-center gap-1"><i data-lucide="info" class="w-3 h-3"></i> Deskripsi Produk</p>
-                            <p id="detailDesc" class="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-inner">Deskripsi produk...</p>
+                            <div id="detailDesc" class="text-sm text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-100 shadow-inner break-words">Deskripsi produk...</div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Sticky Bottom Button -->
-                <div class="p-4 bg-white border-t border-slate-100 shrink-0">
+                <div class="p-4 bg-white border-t border-slate-100 shrink-0 space-y-2.5">
+                    <a id="detailPreviewBtn" href="#" target="_blank" rel="noopener noreferrer" class="hidden w-full py-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 font-bold rounded-xl justify-center items-center gap-2 transition-all active:scale-95">
+                        <i data-lucide="external-link" class="w-5 h-5"></i> Preview / Detail Produk
+                    </a>
                     <button id="detailAddBtn" class="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl flex justify-center items-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
                         <i data-lucide="shopping-cart" class="w-5 h-5"></i> Tambah ke Keranjang
                     </button>
                 </div>
              </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL VIDEO PRODUK -->
+    <!-- ========================================== -->
+    <div id="productVideoModal" class="fixed inset-0 z-[170] hidden">
+        <div class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onclick="closeProductVideo()"></div>
+        <div class="relative min-h-screen flex items-center justify-center p-4">
+            <div class="relative w-full max-w-3xl bg-black rounded-2xl overflow-hidden shadow-2xl z-10">
+                <button type="button" onclick="closeProductVideo()" class="absolute top-3 right-3 z-20 p-2 bg-white/90 rounded-full text-slate-700 shadow">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+                <div id="productVideoFrame" class="aspect-video w-full bg-black flex items-center justify-center"></div>
+            </div>
         </div>
     </div>
 
@@ -945,13 +964,10 @@
             const regularItems = [];
 
             list.forEach(p => {
-                let isPromo = false;
-                if(p.badge) {
-                    const b = p.badge.toLowerCase();
-                    if(b.includes('promo') || b.includes('diskon') || b.includes('sale') || b.includes('%') || b.includes('terlaris') || b.includes('hot')) {
-                        isPromo = true;
-                    }
-                }
+                // Versi awal Single Store: badge apa pun = masuk section Spesial Promo.
+                // Produk tanpa badge tetap masuk Katalog Produk reguler.
+                const isPromo = !!(p.badge && String(p.badge).trim());
+
                 if(isPromo) promoItems.push(p);
                 else regularItems.push(p);
             });
@@ -974,6 +990,134 @@
             refreshIcons();
         }
 
+        function safeHttpUrl(value) {
+            const raw = String(value || '').trim();
+            if (!raw) return '';
+            try {
+                const parsed = new URL(raw);
+                return (parsed.protocol === 'http:' || parsed.protocol === 'https:') ? parsed.href : '';
+            } catch(e) { return ''; }
+        }
+
+        function parseProductUrlList(value) {
+            if (!value) return [];
+            let list = [];
+            if (Array.isArray(value)) list = value;
+            else {
+                try {
+                    const parsed = JSON.parse(value);
+                    list = Array.isArray(parsed) ? parsed : [];
+                } catch(e) {
+                    list = String(value).split(/\r?\n|,/);
+                }
+            }
+            const unique = [];
+            list.forEach(item => {
+                const url = safeHttpUrl(item);
+                if (url && !unique.includes(url)) unique.push(url);
+            });
+            return unique;
+        }
+
+        function escapeProductHtml(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function linkifyProductDescription(value) {
+            const safe = escapeProductHtml(value || 'Tidak ada deskripsi detail untuk produk ini.');
+            return safe
+                .replace(/(https?:\/\/[^\s<]+)/gi, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-emerald-600 font-semibold underline underline-offset-2 break-all">$1</a>')
+                .replace(/\r?\n/g, '<br>');
+        }
+
+        function getProductVideoInfo(url) {
+            const safe = safeHttpUrl(url);
+            if (!safe) return { type: 'invalid', url: '' };
+
+            let match = safe.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/i);
+            if (match) return { type: 'iframe', url: safe, src: 'https://www.youtube.com/embed/' + match[1], thumb: 'https://img.youtube.com/vi/' + match[1] + '/hqdefault.jpg', label: 'YouTube' };
+
+            match = safe.match(/vimeo\.com\/(?:video\/)?(\d+)/i);
+            if (match) return { type: 'iframe', url: safe, src: 'https://player.vimeo.com/video/' + match[1], thumb: '', label: 'Vimeo' };
+
+            match = safe.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
+            if (match) return { type: 'iframe', url: safe, src: 'https://drive.google.com/file/d/' + match[1] + '/preview', thumb: '', label: 'Google Drive' };
+
+            if (/\.(mp4|webm|ogg)(?:[?#].*)?$/i.test(safe)) return { type: 'video', url: safe, src: safe, thumb: '', label: 'Video' };
+            return { type: 'external', url: safe, src: '', thumb: '', label: 'Video Link' };
+        }
+
+        function setProductDetailImage(url) {
+            const safe = safeHttpUrl(url);
+            if (safe) document.getElementById('detailImg').src = safe;
+        }
+
+        function renderProductMedia(p) {
+            const strip = document.getElementById('detailMediaStrip');
+            if (!strip) return;
+
+            const fallback = `https://placehold.co/300x300/e2e8f0/64748b?text=${encodeURIComponent((p.name || 'P').charAt(0))}`;
+            const mainImage = safeHttpUrl(p.img) || fallback;
+            const images = [mainImage].concat(parseProductUrlList(p.gallery_images)).filter((url, index, arr) => arr.indexOf(url) === index);
+            const videos = parseProductUrlList(p.video_urls);
+
+            document.getElementById('detailImg').src = mainImage;
+            const items = [];
+
+            images.forEach((url, i) => {
+                const encoded = encodeURIComponent(url);
+                items.push(`<button type="button" onclick="setProductDetailImage(decodeURIComponent('${encoded}'))" class="w-14 h-14 shrink-0 rounded-lg overflow-hidden border ${i === 0 ? 'border-emerald-500 ring-2 ring-emerald-100' : 'border-slate-200'} bg-slate-100"><img src="${escapeProductHtml(url)}" class="w-full h-full object-cover" alt="Gambar produk"></button>`);
+            });
+
+            videos.forEach((url, i) => {
+                const encoded = encodeURIComponent(url);
+                const info = getProductVideoInfo(url);
+                if (info.thumb) {
+                    items.push(`<button type="button" onclick="openProductVideo(decodeURIComponent('${encoded}'))" class="relative w-20 h-14 shrink-0 rounded-lg overflow-hidden border border-slate-200 bg-slate-900"><img src="${escapeProductHtml(info.thumb)}" class="w-full h-full object-cover opacity-80" alt="Video produk"><span class="absolute inset-0 flex items-center justify-center text-white"><i data-lucide="play-circle" class="w-6 h-6"></i></span></button>`);
+                } else {
+                    items.push(`<button type="button" onclick="openProductVideo(decodeURIComponent('${encoded}'))" class="w-20 h-14 shrink-0 rounded-lg border border-slate-200 bg-slate-900 text-white flex flex-col items-center justify-center gap-0.5"><i data-lucide="play-circle" class="w-5 h-5"></i><span class="text-[8px] font-bold">Video ${i + 1}</span></button>`);
+                }
+            });
+
+            strip.innerHTML = items.join('');
+            if (items.length > 1) strip.classList.remove('hidden');
+            else strip.classList.add('hidden');
+            refreshIcons();
+        }
+
+        function openProductVideo(url) {
+            const info = getProductVideoInfo(url);
+            if (!info.url || info.type === 'invalid') return;
+            if (info.type === 'external') {
+                window.open(info.url, '_blank', 'noopener,noreferrer');
+                return;
+            }
+
+            const frame = document.getElementById('productVideoFrame');
+            const modal = document.getElementById('productVideoModal');
+            if (!frame || !modal) return;
+
+            if (info.type === 'video') {
+                frame.innerHTML = `<video src="${escapeProductHtml(info.src)}" controls autoplay playsinline class="w-full h-full bg-black"></video>`;
+            } else {
+                frame.innerHTML = `<iframe src="${escapeProductHtml(info.src)}" class="w-full h-full border-0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+            }
+            modal.classList.remove('hidden');
+            refreshIcons();
+        }
+
+        function closeProductVideo() {
+            const modal = document.getElementById('productVideoModal');
+            const frame = document.getElementById('productVideoFrame');
+            if (frame) frame.innerHTML = '';
+            if (modal) modal.classList.add('hidden');
+        }
+
         // ==========================================
         // MODAL DETAIL PRODUK
         // ==========================================
@@ -984,10 +1128,22 @@
             activeProductDetails = p; 
             selectedVariantId = null;
 
-            document.getElementById('detailImg').src = p.img || `https://placehold.co/300x300/e2e8f0/64748b?text=${p.name.charAt(0)}`;
+            renderProductMedia(p);
             document.getElementById('detailName').innerText = p.name;
             document.getElementById('detailPriceUnit').innerHTML = `${formatRupiah(p.price)} <span class="text-sm text-slate-400 font-medium">/${p.unit || 'pcs'}</span>`;
-            document.getElementById('detailDesc').innerText = p.desc || 'Tidak ada deskripsi detail untuk produk ini.';
+            document.getElementById('detailDesc').innerHTML = linkifyProductDescription(p.desc);
+
+            const previewBtn = document.getElementById('detailPreviewBtn');
+            const detailUrl = safeHttpUrl(p.detail_url);
+            if (previewBtn && detailUrl) {
+                previewBtn.href = detailUrl;
+                previewBtn.classList.remove('hidden');
+                previewBtn.classList.add('flex');
+            } else if (previewBtn) {
+                previewBtn.href = '#';
+                previewBtn.classList.add('hidden');
+                previewBtn.classList.remove('flex');
+            }
             
             const badgeContainer = document.getElementById('detailBadgeContainer');
             if (p.badge) { 
@@ -1075,7 +1231,7 @@
                 
                 let displayImg = activeProductDetails.img || `https://placehold.co/300x300/e2e8f0/64748b?text=${activeProductDetails.name.charAt(0)}`;
                 if(varianData.gambar && varianData.gambar !== '') displayImg = varianData.gambar;
-                document.getElementById('detailImg').src = displayImg;
+                setProductDetailImage(displayImg);
             }
         }
 
